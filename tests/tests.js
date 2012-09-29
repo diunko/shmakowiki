@@ -508,6 +508,24 @@ var tests = [
           ['para', ['bla']]
         ]
     },
+
+    {
+      'in':[
+        '   * item1',
+        '     %%hljs',
+        '       smth.prop=a+b',
+        '     %%',
+        '   * item2',
+        '   * item3'].join('\n'),
+      'out':[
+        ['ulist', [
+          ['ulistItem',
+           ['item1',
+            ['extension','hljs',
+             '  smth.prop=a+b','']]],
+          ['ulistItem',['item2']],
+          ['ulistItem',['item3']]]]]},
+  
     {
         'in': 'para1\n\npara2\npara2\n\npara3',
         'out': [
