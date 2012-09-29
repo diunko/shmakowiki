@@ -84,8 +84,9 @@ ometa ShmakoWiki {
                 { var hAST = ShmakoWiki.matchAll(c, 'topInline'),
                       hAnchor = utils.transliterate('ru', anchor.length ? anchor : ShmakoWikiToPlain.match(hAST, 'topLevel'));
                   ['header' + (l <= 6 ? l : 6), hAST, hAnchor] },
-  
-    blockEnd = ('\n' ~~extBlockStart)
+
+    blockEnd = blockEnd1(0),
+    blockEnd1 :n = ('\n' ~~extBlockStart0)
              | ('\n' (noNlSpace* '\n')+)
              | ('\n' ~~listStart)
              | ('\n' ~~headerStart)
@@ -107,7 +108,8 @@ ometa ShmakoWiki {
     listItem :t :n =
         ' '*:s ?(n == s.length) bullet1(t)
         listItemContent:p ('\n' | end)
-        list1(n+1)*:b -> [t+`listItem, p.concat(b)],
+        (list1(n+1) | extBlock1(n+1))*:b
+            -> [t+`listItem, p.concat(b)],
 
     list = list1(0),
     list1 :n =
@@ -116,19 +118,42 @@ ometa ShmakoWiki {
         ('\n' noNlSpace*)* -> [b+`list, ss],
 
 
-    extBlockStart = ((ext char:t '%') -> t | ext -> ''):tt
-                    (~space char)*:c spacesNoNl (~'\n' char)*:cc '\n' -> [tt, c.join(''), cc.join('')],
-    extBlockEnd :t ?(t.length == 0) = space* ext,
-    extBlockEnd char:t ?(t.length > 0) = space* '%' seq(t) ext,
+    extBlockStart = extBlockStart1(0),
+    extBlockStart0 =
+        noNlSpace*:s
+        ((ext char:t '%') -> t | ext -> ''):tag_char
+        (~space char)*:ext_name noNlSpace* (~'\n' char)*:ext_arguments '\n'
+            -> [tag_char, ext_name.join(''), ext_arguments.join('')],
+    extBlockStart1 :n =
+        noNlSpace*:s ?(n == s.length)
+        ((ext char:t '%') -> t | ext -> ''):tag_char
+        (~space char)*:ext_name noNlSpace* (~'\n' char)*:ext_arguments '\n'
+            -> [tag_char, ext_name.join(''), ext_arguments.join('')],
+    
 
-    extBlock = extBlockStart:s
-               ((~extBlockEnd(s[0]) char)+:cc -> cc.join('')):c
-               extBlockEnd(s[0]) (blockEnd | '\n') -> [`extension, s[1],
-                   utils.getExtension(s[1], 'shmakowikiToAst')(c, s[2]), s[2]],
+    extBlockLine1 :t :n=
+        noNlSpace*:s0 ?(n <= s0.length)
+        (~'\n' ~extBlockEnd(t) char)+:c0
+            -> s0.slice(n).concat(c0).join(''),
+    
+
+    extBlockEnd :t = extBlockEnd1(t,0),
+    extBlockEnd1 :t ?(t.length == 0) :n = space* ext,
+    extBlockEnd1 char:t ?(0 < t.length) :n = space* '%' seq(t) ext,
+
+
+    extBlock = extBlock1(0),
+    extBlock1 :n =
+      ~~(noNlSpace*:s0) ?(n <= s0.length) extBlockStart1(s0.length):es
+      (extBlockLine1(es[0],s0.length):l0 (~extBlockEnd(es[0]) noNlSpace* '\n')*:nl0
+         -> {l0+nl0.join('')})+:ll
+      extBlockEnd(es[0]) (blockEnd | '\n')
+      -> [`extension, es[1],
+          utils.getExtension(es[1],'shmakowikiToAst')(ll.join(''), es[2]),es[2]],
 
     allBlock = extBlock | list | header | para,
 
-    topLevel = (spacesNoNl '\n')* allBlock+:t -> t
+    topLevel = (noNlSpace* '\n')* allBlock+:t -> t
 }
 
 ShmakoWiki.arrJoin = function(arr1, arr2) {
