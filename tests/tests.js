@@ -811,6 +811,9 @@ var tests = [
       // <li>
       //   <h3 id="item3">item3 some more in item3 header
       //     and some more item3 header content</h3>
+      //<pre>
+      //  illustrative();
+      //</pre>
       //   <p>item3 para1 some more item3 para1 and more item3
       //   para1</p>
       //   <p>item3 para2 item3 para2 more</p>
