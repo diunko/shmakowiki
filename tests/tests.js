@@ -93,7 +93,7 @@ var tests = [
             [
               'ulistItem',
               [
-                'listitem2',
+                ['para', ['listitem2']],
                 ['ulist', [['ulistItem', ['sublistitem2']]]]
               ]
             ]
@@ -111,7 +111,8 @@ var tests = [
             ['olistItem', ['listitem1']],
             [
               'olistItem',
-              ['listitem2', ['olist', [['olistItem', ['sublistitem2']]]]]
+              [['para', ['listitem2']],
+               ['olist', [['olistItem', ['sublistitem2']]]]]
             ]
           ]
         ]]
@@ -138,13 +139,13 @@ var tests = [
           [[
             'ulistItem',
             [
-              'listitem1',
+              ['para', ['listitem1']],
               [
                 'ulist',
                 [[
                   'ulistItem',
                   [
-                    'sublistitem1',
+                    ['para', 'sublistitem1'],
                     ['ulist', [['ulistItem', ['subsublistitem1']]]]
                   ]
                 ]]
@@ -164,12 +165,12 @@ var tests = [
           [[
             'ulistItem',
             [
-              'listitem1',
+              ['para', ['listitem1']],
               [
                 'ulist',
                 [
                   [
-                    'ulistItem',
+                    ['para', ['ulistItem']],
                     [
                       'sublistitem1',
                       ['ulist', [['ulistItem', ['subsublistitem1']]]]
@@ -194,14 +195,14 @@ var tests = [
           [[
             'ulistItem',
             [
-              'listitem1',
+              ['para', ['listitem1']],
               [
                 'ulist',
                 [
                   [
                     'ulistItem',
                     [
-                      'sublistitem1',
+                      ['para', ['sublistitem1']],
                       ['olist', [['olistItem', ['osubsublistitem1']]]],
                       ['ulist', [['ulistItem', ['usubsublistitem1']]]]
                     ]
@@ -225,21 +226,21 @@ var tests = [
           [[
             'ulistItem',
             [
-              'listitem1',
+              ['para', ['listitem1']],
               [
                 'ulist',
                 [
                   [
                     'ulistItem',
                     [
-                      'sublistitem1',
+                      ['para', ['sublistitem1']],
                       ['ulist', [['ulistItem', ['subsublistitem1']]]]
                     ]
                   ],
                   [
                     'ulistItem',
                     [
-                      'sublistitem2',
+                      ['para', ['sublistitem2']],
                       ['ulist', [['ulistItem', ['subsublistitem2']]]]
                     ]
                   ]
@@ -263,12 +264,13 @@ var tests = [
             ['ulistItem', ['listitem1']],
             [
               'ulistItem',
-              ['listitem2', ['ulist', [['ulistItem', ['sublistitem21']]]]]
+              [['para', ['listitem2']],
+               ['ulist', [['ulistItem', ['sublistitem21']]]]]
             ],
             [
               'ulistItem',
               [
-                'listitem3',
+                ['para', ['listitem3']],
                 [
                   'ulist',
                   [
@@ -293,14 +295,14 @@ var tests = [
           'olist',
           [
             ['olistItem', ['listitem1']],
-            [
-              'olistItem',
-              ['listitem2', ['ulist', [['ulistItem', ['sublistitem21']]]]]
+            ['olistItem',
+              [['para', ['listitem2']],
+               ['ulist', [['ulistItem', ['sublistitem21']]]]]
             ],
             [
               'olistItem',
               [
-                'listitem3',
+                ['para', ['listitem3']],
                 [
                   'ulist',
                   [
@@ -329,15 +331,15 @@ var tests = [
       'out':[["olist",
               [["olistItem", ["oli1"]],
                ["olistItem",
-                ["oli2",
+                [["para", ["oli2"]],
                  ["ulist",
                   [["ulistItem", ["uli21"]],
                    ["ulistItem",
-                    ["uli22",
+                    [["para", ["uli22"]],
                      ["olist",
                       [["olistItem", ["oli221"]],
                        ["olistItem",
-                        ["oli222",
+                        [["para", ["oli222"]],
                          ["ulist",
                           [["ulistItem", ["uli2221"]],
                            ["ulistItem", ["uli2222"]],
@@ -466,6 +468,7 @@ var tests = [
     },
     {
         'name':'empty lines terminate lists',
+        //seems that we have to abandon it. see 'allow empty lines in lists' test
         'in': [
           '* listitem **bold**',
           '* listitem //italic//',
@@ -652,24 +655,37 @@ var tests = [
       'out':[
         ['ulist', [
           ['ulistItem',
-           ['item1',
+           [['para',['item1']],
             ['extension','hljs',
              '  smth.prop=a+b','']]],
           ['ulistItem',['item2']],
           ['ulistItem',['item3']]]]]},
 
     {
+      'name':'misplaced indent behavior',
+      //closing extension tag indent should strictly match indent of
+      //opening one and all extension's inner lines should be indented
+      //equally or more then opening extension tag
       'in':[
         ' * item1',
         '   * item2',
         '  %%hljs',
         '    anyjs();',
-        '%%', //should it be possible to close
-        //extension block this way (no indent)
-        '   %%',//or this way (a lots of)
-        '  %%', // or closing extension tag indent level should strictly
-        // match indent level of opening one?
-      ]
+        '',
+        '    otherjs();',
+        ' anotherjs();',//this breaks extension block,
+        //so block is parsed as para, not including this line
+        ' %%' //unindent of closing tag breaks extension block too
+      ],
+      'out':[
+        ["ulist",
+         [["ulistItem",
+           [["para",["item1"]],
+            ["ulist",[
+              ["ulistItem",["item2"]]]],
+            ["para",["%%hljs anyjs();"]],
+            ["para",["otherjs();"]]]]]],
+        ["para",["anotherjs(); %%"]]]
     },
 
     {
@@ -678,20 +694,30 @@ var tests = [
         '   * item2',
         '  %%A%hljs',
         '', //empty lines don't break extension blocks
+        '    ', //without any regard of contained spaces
+        '  function(){return null}',
         '  %A%%'],
-      //How does it go together with 'empty lines terminate lists' test?
-      //Shouldn't we rather allow empty lines in lists and split them
-      //according to indent level, like in the following case?
+      'out':[
+        ["ulist",[
+          ["ulistItem",
+           [["para", ["item1"]],
+            ["ulist",[
+              ["ulistItem",["item2"]]]],
+            ["extension","hljs",
+             "\n\nfunction(){return null}",""]]]]]]
     },
 
     {
       'name':'allow empty lines in lists',
+      //We have to allow these. How else would paragraphs in
+      //listitems be separated? (see 'block elements inside lists')
       'in':[
         ' * item1',
         ' * item2',
         '',
         '   * item22',
         '',
+        '     ', //don't care about space in empty lines
         '   * item23',
         '',
         ' * item3',
@@ -701,7 +727,7 @@ var tests = [
         ['ulist',
          [['ulistItem',['item1']],
           ['ulistItem',
-           ['item2',
+           [['para', ['item2']],
             ['ulist',
              [['ulistItem',['item22']],
               ['ulistItem',['item23']]]]]],
@@ -723,27 +749,113 @@ var tests = [
         ['ulist',
          [['ulistItem',['item1 something']],
           ['ulistItem',
-           ['para' ['item2 para1']],
-           ['para' ['item2 para2 something item2 para2 more']]],
+           [['para' ['item2 para1']],
+            ['para' ['item2 para2 something item2 para2 more']]]],
           ['ulistItem',['item3']]]]]
     },
 
     {
-      'name':'headers terminate lists',
+      'name':'unindented headers terminate lists',
       'in':[
         ' * item11',
         ' * item12',
         '',
-        '  ==header',
+        '  ==inner header',
+        ' * item13',
+        '==header',
         ' * item21'],
       'out':[
         ['ulist',
          [['ulistItem',['item11']],
-          ['ulistItem',['item12']]]],
+          ['ulistItem',
+           [['para', ['item12']],
+            ['header3',['inner header'],'innerheader']]]]],
         ['header1',['header'],'header'],
         ['ulist',
          [['ulistItem',['item21']]]]]
-    }
+    },
+
+  {
+    'name':'all kinds of in-list blocks',
+    'in':[
+      " * item1", //inline content in list item: <li>item1</li>
+      "",
+      " * item2 para1",
+      "",
+      "  item2 para2",
+      "    item2 para2 more",
+      // more then one para in list item,
+      // so both go as para:
+      // <li><p>item2 para1</p>
+      //     <p>item2 para2 item2 para2 more"</p></li>        
+      " * ==item3", 
+      "  some more in item3 header",
+      "   and more header content==item3",
+      //in-list header could be constant h3 or h4 regardless of
+      //header level specified by === signs 
+      //alternatively, it could start at h3 and go smaller, i.e.
+      // ===header== would be h4, ==== would be h5 etc.
+      "",
+      "  %%hljs",
+      "    illustrative();",
+      "  %%",
+      "",
+      "  item3 para1",
+      "    some more item3 para1",
+      "   and more item3 para1",
+      "",
+      "  item3 para2",
+      "   item3 para2 more",
+      "",
+      // item3 would translate as:
+      // <li>
+      //   <h3 id="item3">item3 some more in item3 header
+      //     and some more item3 header content</h3>
+      //   <p>item3 para1 some more item3 para1 and more item3
+      //   para1</p>
+      //   <p>item3 para2 item3 para2 more</p>
+      // </li>
+      //
+      " * ==item4", 
+      "   * ==item41",
+      "   * ==item42==id42",
+      "    item42 para1",
+      "    item42 para1 more",
+      "",
+      "    item42 para2",
+      "",
+      "   * ==item43==",
+      "     item43 para"],
+    'out':[
+      ["ulist",
+       [["ulistItem",["item1"]],
+        ["ulistItem",
+         [["para",["item2 para1"]],
+          ["para",["item2 para2 item2 para2 more"]]
+          ["ulistItem",
+           [["header3",["item3 some more in item3 header "+
+                        "and more header content"],"item3"]
+            ["extension","hljs",
+             "  illustrative();",""],
+            ["para",["item3 para1 some more item3 para1 "+
+                     "and more item3 para1"],
+             ["para",["item3 para2 item3 para2 more"]]]]],
+          ["ulistItem",
+           [["header3",["item4"]],
+            ["ulist",
+             [["ulistItem",
+               [["header3",["item41"],"item41"]]],
+              ["ulistItem",
+               [["header3",["item42"],"id42"],
+                ["para",["item42 para1 item42 para1 more"]]
+                ["para",["item42 para2"]]]],
+              ["ulistItem",
+               [["header3",["item43"],"item43"],
+                ["para",["item43 para"]]]]]]]]]]]]]
+  }
+
+
+  
 ];
 
 var api = require('../lib/shmakowiki.js'),
