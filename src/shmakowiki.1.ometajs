@@ -1,0 +1,94 @@
+ 
+ometa PL {
+    nl = noNlSpace* '\n',
+    eol = '\n'|end,
+
+    line = noNlSpace*:s (~'\n' char)*:c eol
+        -> [`line, s.length, c],
+
+    top = line*:ll
+        -> [`top, ll]
+}
+
+ometa W {
+
+    para1 :n =
+        (?(!b) //no block parsed whatsoever
+         ~~(line:l
+            ?(0 < l[2]) 
+            ?(n <= l[1])) //line is not empty and not unindented
+         ((extension | list | header):b | line:l)
+         -> { b?'':l[2]})*:ll
+        -> {b?[`splice, [`para, ll.join(' ')], b]:
+            [`para, ll.join(' ')]},
+    
+    header1 :n =
+        headerStart:hs
+        (?(!b)
+         ~~(line:l
+            ?(0 < l[2])
+            ?(n <= l[1]))
+         ((extension | list | header):b | line:l)
+         -> { b?'':l[2]})*:ll
+        -> {b?[`splice, [`header, ll.join(' ')], b]:
+            [`header, ll.join(' ')]},
+
+    extension1 :n =
+        extStart:es
+        (~extEnd extLines):ll
+        extEnd,
+
+    list1 :n =
+        ~~(listStart:ls)
+        listItem(ls)+:ii,
+
+    listItem1 :n =
+        bullet
+        (inline:c blocks1(n+1)+:bb -> [`listItem [[`para [c]]].concat(bb)]
+         | inline:c -> [`listItem [c]]),
+
+    blocks1 :n =
+        (extension | list | header | para)+:bb
+        -> {apply_splices([`top,bb])[1]},
+    
+}
+
+
+function apply_splices(ast){
+  return [ast[0],_applice(ast[1])] 
+
+  function _applice(nn){
+    var cc=[]
+    
+    var S=[{i:0,nn:nn}],I=0
+    //objects stack instead of recursive funcalls
+    //gains us somewhat questionable savings
+    //at least, there's no need for recursive cc allocations
+    
+    a:
+    while(true){
+      if(!(S[I].i < S[I].nn.length)){
+        if(0 < I){
+          S.pop()
+          I--
+          continue}
+        else{
+          break}}
+      var n=S[I].nn[S[I].i]
+      if(n && typeof n==="object" && 2 <= n.length
+         && n[0]==="splice"){
+        S.push({i:0,nn:n[1]})
+        S[I].i++
+        I++
+        continue}
+      else{
+        cc.push(n)
+        S[I].i++}}
+    return cc}
+}
+
+
+
+
+
+
